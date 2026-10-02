@@ -1,4 +1,5 @@
 name: CI
+
 on:
   push:
     branches: [main]
@@ -34,5 +35,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install
+        run: npm install --ignore-scripts --no-audit --no-fund
       - name: TypeScript check
-        run: npx --yes tsc --noEmit
+        run: npx tsc --noEmit
