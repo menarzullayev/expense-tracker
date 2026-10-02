@@ -43,12 +43,12 @@ def ensure_category(db: Session, user_id: str, category_id: str | None, kind: st
 
 
 @router.get("/accounts", response_model=list[AccountResponse])
-def list_accounts(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def list_accounts(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[Account]:
     return list(db.scalars(select(Account).where(Account.user_id == user.id).order_by(Account.created_at)).all())
 
 
 @router.post("/accounts", response_model=AccountResponse, status_code=201)
-def create_account(payload: AccountCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_account(payload: AccountCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Account:
     account = Account(
         user_id=user.id,
         name=payload.name.strip(),
@@ -64,12 +64,12 @@ def create_account(payload: AccountCreate, user: User = Depends(get_current_user
 
 
 @router.get("/categories", response_model=list[CategoryResponse])
-def list_categories(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def list_categories(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[Category]:
     return list(db.scalars(select(Category).where(Category.user_id == user.id).order_by(Category.name)).all())
 
 
 @router.post("/categories", response_model=CategoryResponse, status_code=201)
-def create_category(payload: CategoryCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_category(payload: CategoryCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Category:
     existing = db.scalar(
         select(Category).where(Category.user_id == user.id, Category.name == payload.name, Category.kind == payload.kind)
     )
@@ -94,7 +94,7 @@ def list_transactions(
     offset: int = Query(default=0, ge=0, le=100000),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> list[Transaction]:
     stmt = select(Transaction).where(Transaction.user_id == user.id)
     if from_date:
         stmt = stmt.where(Transaction.transaction_date >= from_date)
@@ -116,7 +116,7 @@ def create_transaction(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> Transaction:
     if not idempotency_key or len(idempotency_key) > 255:
         raise HTTPException(status_code=400, detail="Idempotency-Key is required and must be <= 255 characters")
     request_hash = hashlib.sha256(payload.model_dump_json().encode("utf-8")).hexdigest()
@@ -166,7 +166,7 @@ def create_transaction(
 
 
 @router.get("/accounts/{account_id}/balance")
-def account_balance(account_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def account_balance(account_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict[str, str]:
     account = ensure_account(db, user.id, account_id)
     income = db.scalar(select(func.coalesce(func.sum(Transaction.amount), Decimal("0"))).where(
         Transaction.user_id == user.id, Transaction.account_id == account.id, Transaction.type == "income"
@@ -184,7 +184,7 @@ def category_breakdown(
     to_date: date,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> list[dict[str, str | Decimal]]:
     if from_date > to_date:
         raise HTTPException(status_code=400, detail="from_date must be <= to_date")
     rows = db.execute(
@@ -208,7 +208,7 @@ def summary(
     to_date: date | None = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> SummaryResponse:
     if not from_date and not to_date:
         today = date.today()
         from_date, to_date = today.replace(day=1), today
