@@ -209,22 +209,26 @@ def summary(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> SummaryResponse:
-    if not from_date and not to_date:
-        today = date.today()
-        from_date, to_date = today.replace(day=1), today
-    elif not from_date:
-        from_date = to_date - timedelta(days=30)
-    elif not to_date:
-        to_date = from_date + timedelta(days=30)
-    if from_date > to_date:
+    today = date.today()
+    if from_date is None and to_date is None:
+        start_date, end_date = today.replace(day=1), today
+    elif from_date is None and to_date is not None:
+        start_date, end_date = to_date - timedelta(days=30), to_date
+    elif from_date is not None and to_date is None:
+        start_date, end_date = from_date, from_date + timedelta(days=30)
+    else:
+        assert from_date is not None and to_date is not None
+        start_date, end_date = from_date, to_date
+
+    if start_date > end_date:
         raise HTTPException(status_code=400, detail="from_date must be <= to_date")
 
     rows = db.execute(
         select(Transaction.type, func.coalesce(func.sum(Transaction.amount), Decimal("0")), func.count(Transaction.id))
         .where(
             Transaction.user_id == user.id,
-            Transaction.transaction_date >= from_date,
-            Transaction.transaction_date <= to_date,
+            Transaction.transaction_date >= start_date,
+            Transaction.transaction_date <= end_date,
             Transaction.currency == user.base_currency,
         )
         .group_by(Transaction.type)
@@ -239,8 +243,8 @@ def summary(
         elif kind == "expense":
             expenses = total
     return SummaryResponse(
-        from_date=from_date,
-        to_date=to_date,
+        from_date=start_date,
+        to_date=end_date,
         income=income,
         expenses=expenses,
         net=income - expenses,
