@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: expense_tracker
+      POSTGRES_USER: expense
+      POSTGRES_PASSWORD: expense
+    ports: ["5432:5432"]
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U expense -d expense_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ../backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg://expense:expense@postgres:5432/expense_tracker
+      JWT_SECRET: replace-this-before-production
+      CORS_ORIGINS: http://localhost:5173
+    ports: ["8000:8000"]
+
+volumes:
+  postgres_data:

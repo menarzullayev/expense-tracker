@@ -1,0 +1,37 @@
+[project]
+name = "expense-tracker-api"
+version = "0.1.0"
+description = "Production-oriented personal expense tracker API"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.120,<1",
+  "uvicorn[standard]>=0.30,<1",
+  "sqlalchemy>=2.0,<2.1",
+  "alembic>=1.16,<2",
+  "pydantic>=2.10,<3",
+  "pydantic-settings>=2.8,<3",
+  "PyJWT>=2.9,<3",
+  "argon2-cffi>=23.1,<26",
+  "python-multipart>=0.0.20,<1",
+  "psycopg[binary]>=3.2,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<10",
+  "httpx>=0.27,<1",
+  "ruff>=0.8,<1",
+  "mypy>=1.13,<2",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"

@@ -1,0 +1,11 @@
+{
+  "name": "expense-tracker-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "rm -rf dist && tsc --outDir dist --rootDir src && cp src/index.html dist/index.html && cp src/styles.css dist/styles.css"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  }
+}
