@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from argon2 import PasswordHasher
@@ -23,7 +23,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 def create_access_token(subject: str) -> tuple[str, int]:
     settings = get_settings()
     expires = timedelta(minutes=settings.access_token_minutes)
-    exp = datetime.now(timezone.utc) + expires
+    exp = datetime.now(UTC) + expires
     token = jwt.encode({"sub": subject, "exp": exp}, settings.jwt_secret, algorithm=settings.jwt_algorithm)
     return token, int(expires.total_seconds())
 

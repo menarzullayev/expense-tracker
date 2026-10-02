@@ -1,6 +1,5 @@
 from datetime import date, timedelta
 import hashlib
-import json
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -157,7 +156,7 @@ def create_transaction(
         )
         if existing:
             if existing.request_hash != request_hash:
-                raise HTTPException(status_code=409, detail="Idempotency-Key was already used for a different request")
+                raise HTTPException(status_code=409, detail="Idempotency-Key was already used for a different request") from None
             return existing
         raise
     db.refresh(transaction)
