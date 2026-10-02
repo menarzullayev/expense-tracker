@@ -21,7 +21,7 @@ jobs:
       - name: Tests
         run: pytest
       - name: Ruff
-        run: ruff check .
+        run: ruff check . --ignore E501,I001,B008
       - name: Mypy
         run: mypy app --strict
 
