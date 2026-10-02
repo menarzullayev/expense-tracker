@@ -7,14 +7,14 @@ async function api(path: string, init: RequestInit = {}) {
   headers.set("Content-Type", "application/json");
   if (state.token) headers.set("Authorization", `Bearer ${state.token}`);
   const res = await fetch(`${API}${path}`, { ...init, headers });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail ?? `HTTP ${res.status}`);
+  if (!res.ok) { const body = await res.json().catch(() => ({})); const detail = body?.detail; const message = typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map((x: any) => x?.msg ?? JSON.stringify(x)).join(", ") : detail ? JSON.stringify(detail) : `HTTP ${res.status}`; throw new Error(message); }
   return res.status === 204 ? null : res.json();
 }
 
 function renderLogin() {
   document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <main class="shell auth"><section class="card"><h1>Expense Tracker</h1><p class="muted">Private, auditable personal finance.</p>
-  <form id="login"><label>Email<input name="email" type="email" required value="demo@example.com"></label>
+  <form id="login"><label>Email<input name="email" type="email" required value="demo@expense-tracker.example"></label>
   <label>Password<input name="password" type="password" required value="StrongPass123!"></label><button>Sign in</button></form>
   <button id="register" class="secondary">Create account</button><p id="error" class="error"></p></section></main>`;
   document.querySelector("#login")!.addEventListener("submit", async (e) => { e.preventDefault(); const f = new FormData(e.currentTarget as HTMLFormElement);
