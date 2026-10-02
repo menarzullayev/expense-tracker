@@ -6,6 +6,6 @@
     "build": "rm -rf dist && tsc --outDir dist --rootDir src && cp src/index.html dist/index.html && cp src/styles.css dist/styles.css"
   },
   "devDependencies": {
-    "typescript": "^5.8.0"
+    "typescript": "^7.0.2"
   }
 }
