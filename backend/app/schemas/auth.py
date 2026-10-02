@@ -25,3 +25,4 @@ class UserResponse(BaseModel):
     email: EmailStr
     display_name: str
     base_currency: str
+    role: str
