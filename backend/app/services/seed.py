@@ -17,9 +17,9 @@ class SeedUser:
 
 
 DEMO_USERS = (
-    SeedUser("demo@expense-tracker.local", "Demo User", "user", "DEMO_PASSWORD"),
-    SeedUser("admin@expense-tracker.local", "Admin User", "admin", "ADMIN_PASSWORD"),
-    SeedUser("root@expense-tracker.local", "Root User", "root", "ROOT_PASSWORD"),
+    SeedUser("demo@expense-tracker.example", "Demo User", "user", "DEMO_PASSWORD"),
+    SeedUser("admin@expense-tracker.example", "Admin User", "admin", "ADMIN_PASSWORD"),
+    SeedUser("root@expense-tracker.example", "Root User", "root", "ROOT_PASSWORD"),
 )
 
 
