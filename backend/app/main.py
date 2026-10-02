@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from app.api import auth, finance
 from app.core.config import get_settings
@@ -17,7 +17,7 @@ logger = logging.getLogger("expense-tracker")
 settings = get_settings()
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     if settings.environment != "production":
         Base.metadata.create_all(bind=engine)
     elif settings.jwt_secret == "change-me-in-production":
@@ -36,7 +36,7 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list, allo
 
 
 @app.middleware("http")
-async def request_context(request: Request, call_next):
+async def request_context(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
     request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     started = time.perf_counter()
     try:
@@ -54,12 +54,12 @@ async def request_context(request: Request, call_next):
 
 
 @app.get("/health/live", tags=["health"])
-def liveness():
+def liveness() -> dict[str, str]:
     return {"status": "ok"}
 
 
 @app.get("/health/ready", tags=["health"])
-def readiness():
+def readiness() -> dict[str, str]:
     with engine.connect() as conn:
         conn.exec_driver_sql("SELECT 1")
     return {"status": "ready"}
