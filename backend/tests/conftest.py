@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_expense_tracker.db"
 os.environ["JWT_SECRET"] = "test-secret-with-enough-entropy-for-tests"
