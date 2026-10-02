@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -24,7 +26,7 @@ def get_current_user(
     return user
 
 
-def require_roles(*roles: str):
+def require_roles(*roles: str) -> Callable[[User], User]:
     allowed = set(roles)
 
     def dependency(user: User = Depends(get_current_user)) -> User:
