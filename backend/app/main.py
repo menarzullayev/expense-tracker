@@ -10,7 +10,8 @@ from fastapi.responses import JSONResponse, Response
 
 from app.api import auth, finance
 from app.core.config import get_settings
-from app.db.session import Base, engine
+from app.db.session import Base, SessionLocal, engine
+from app.services.seed import seed_system_users
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("expense-tracker")
@@ -28,6 +29,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         raise RuntimeError("SQLite is not supported for production deployments; use PostgreSQL")
     elif not settings.cors_origin_list:
         raise RuntimeError("CORS_ORIGINS must contain an explicit frontend origin in production")
+    db = SessionLocal()
+    try:
+        seed_system_users(db)
+    finally:
+        db.close()
     yield
 
 
