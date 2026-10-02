@@ -24,6 +24,7 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
+
 class User(Base):
     __tablename__ = "users"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
@@ -31,6 +32,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(Text)
     display_name: Mapped[str] = mapped_column(String(120))
     base_currency: Mapped[str] = mapped_column(String(3), default="UZS")
+    role: Mapped[str] = mapped_column(String(20), default="user", server_default="user")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -59,7 +61,7 @@ class Category(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(100))
-    kind: Mapped[str] = mapped_column(String(10))  # income|expense
+    kind: Mapped[str] = mapped_column(String(10))
     icon: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     user: Mapped[User] = relationship(back_populates="categories")
@@ -77,7 +79,7 @@ class Transaction(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), index=True)
     category_id: Mapped[str | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), index=True)
-    type: Mapped[str] = mapped_column(String(10))  # income|expense
+    type: Mapped[str] = mapped_column(String(10))
     amount: Mapped[Decimal] = mapped_column(Numeric(20, 4))
     currency: Mapped[str] = mapped_column(String(3))
     description: Mapped[str] = mapped_column(String(500), default="")
