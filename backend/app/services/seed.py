@@ -184,7 +184,7 @@ def seed_demo_finance_data(db: Session) -> None:
                 k=1,
             )[0]
             lo, hi = AMOUNTS[cat]
-            amount = rng.randrange(lo, hi + 1, max(1000, (hi - lo) // 30))
+            amount = Decimal(rng.randrange(lo, hi + 1, max(1000, (hi - lo) // 30)))
             day = rng.randrange(1, 29)
             if month_offset == 11 and cat in {"Kiyim-kechak", "Xaridlar"}:
                 amount = int(amount * 1.25)
@@ -228,7 +228,7 @@ def seed_demo_finance_data(db: Session) -> None:
         month_start = (start.replace(day=1) + timedelta(days=32 * month_offset)).replace(day=1)
         cat = rng.choice(list(AMOUNTS))
         lo, hi = AMOUNTS[cat]
-        amount = rng.randrange(lo, hi + 1, 1000)
+        amount = Decimal(rng.randrange(lo, hi + 1, 1000))
         rows.append(Transaction(
             user_id=demo.id, account_id=rng.choice(accounts).id,
             category_id=categories[("expense", cat)].id, type="expense",
