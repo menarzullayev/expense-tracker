@@ -1,117 +1,46 @@
 const API = (window as Window & { ENV_API?: string }).ENV_API ?? "http://localhost:8000";
 const tokenKey = "expense_tracker_token";
-const state = { token: localStorage.getItem(tokenKey) ?? "", accounts: [] as any[], categories: [] as any[] };
+type Account={id:string;name:string;currency:string}; type Category={id:string;name:string;kind:string};
+type Tx={id:string;account_id:string;category_id?:string|null;type:"income"|"expense";amount:string;currency:string;description:string;transaction_date:string};
+type Summary={from_date:string;to_date:string;income:string;expenses:string;net:string;transaction_count:number};
+const state={token:localStorage.getItem(tokenKey)??"",accounts:[] as Account[],categories:[] as Category[],txs:[] as Tx[],summary:null as Summary|null,view:"dashboard",modal:false,search:""};
 
-const icons = {
-  logo:'<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="4" fill="currentColor" opacity=".18"/><path d="M7.5 16V11M12 16V7M16.5 16v-3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
-  mail:'<svg viewBox="0 0 24 24" fill="none"><path d="M4 6.5h16v11H4z" stroke="currentColor" stroke-width="1.8"/><path d="m5 8 7 5 7-5" stroke="currentColor" stroke-width="1.8"/></svg>',
-  lock:'<svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.8"/></svg>',
-  eye:'<svg viewBox="0 0 24 24" fill="none"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.8"/></svg>',
-  eyeOff:'<svg viewBox="0 0 24 24" fill="none"><path d="m3 3 18 18M10.6 6.2A9.9 9.9 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-3.1 3.7M6.1 6.9C3.8 8.6 2.5 12 2.5 12s3.5 6 9.5 6c1.3 0 2.5-.3 3.5-.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  chart:'<svg viewBox="0 0 24 24" fill="none"><path d="M6 18V11M12 18V6M18 18v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-  pie:'<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v9h9A9 9 0 1 0 12 3Z" stroke="currentColor" stroke-width="1.8"/><path d="M15 3.6A9 9 0 0 1 20.4 9H15V3.6Z" stroke="currentColor" stroke-width="1.8"/></svg>',
-  trend:'<svg viewBox="0 0 24 24" fill="none"><path d="m4 16 5-5 4 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 7h5v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-  shield:'<svg viewBox="0 0 24 24" fill="none"><path d="M12 3 20 6v5c0 5-3.2 8.5-8 10-4.8-1.5-8-5-8-10V6l8-3Z" stroke="currentColor" stroke-width="1.8"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
-  arrow:'<svg viewBox="0 0 24 24" fill="none"><path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+const icon=(d:string)=>'<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">'+d+"</svg>";
+const I={
+ logo:icon('<rect x="4" y="3" width="16" height="18" rx="4" fill="currentColor" opacity=".18"/><path d="M7.5 16V11M12 16V7M16.5 16v-3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>'),
+ home:icon('<path d="M4 10.5 12 4l8 6.5V20H4z" stroke="currentColor" stroke-width="1.8"/><path d="M9 20v-5h6v5" stroke="currentColor" stroke-width="1.8"/>'),
+ list:icon('<path d="M8 6h12M8 12h12M8 18h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/>'),
+ cat:icon('<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.8"/><circle cx="16" cy="16" r="3" stroke="currentColor" stroke-width="1.8"/><path d="m5 19 14-14" stroke="currentColor" stroke-width="1.8"/>'),
+ budget:icon('<path d="M4 7h16v13H4zM8 7V5h8v2M8 13h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'),
+ report:icon('<path d="M5 20V10M12 20V4M19 20v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
+ settings:icon('<circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="m19 13.5 1.2.9-1.7 2.9-1.4-.6a8 8 0 0 1-1.9 1.1L15 19h-3l-.2-1.2a8 8 0 0 1-1.9-1.1l-1.4.6-1.7-2.9 1.2-.9a7 7 0 0 1 0-3l-1.2-.9 1.7-2.9 1.4.6a8 8 0 0 1 1.9-1.1L12 5h3l.2 1.2a8 8 0 0 1 1.9 1.1l1.4-.6 1.7 2.9-1.2.9a7 7 0 0 1 0 3Z" stroke="currentColor" stroke-width="1.3"/>'),
+ search:icon('<circle cx="10.8" cy="10.8" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'),
+ bell:icon('<path d="M6 17h12l-1.3-1.7V10a4.7 4.7 0 0 0-9.4 0v5.3L6 17ZM10 20h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'),
+ plus:icon('<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
+ wallet:icon('<path d="M4 8a3 3 0 0 1 3-3h12v14H7a3 3 0 0 1-3-3V8Z" stroke="currentColor" stroke-width="1.8"/><path d="M4 9h15M16 12h3v4h-3a2 2 0 1 1 0-4Z" stroke="currentColor" stroke-width="1.8"/>'),
+ up:icon('<path d="M5 17 17 5M9 5h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
+ down:icon('<path d="m5 5 14 14M19 9v10H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'),
+ close:icon('<path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>')
 };
 
-async function api(path: string, init: RequestInit = {}) {
-  const headers = new Headers(init.headers);
-  headers.set("Content-Type", "application/json");
-  if (state.token) headers.set("Authorization", "Bearer " + state.token);
-  const res = await fetch(API + path, { ...init, headers });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const detail = body?.detail;
-    const message = typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map((x: any) => x?.msg ?? JSON.stringify(x)).join(", ") : detail ? JSON.stringify(detail) : "HTTP " + res.status;
-    throw new Error(message);
-  }
-  return res.status === 204 ? null : res.json();
-}
+async function api(path:string,init:RequestInit={}){const h=new Headers(init.headers);h.set("Content-Type","application/json");if(state.token)h.set("Authorization","Bearer "+state.token);const r=await fetch(API+path,{...init,headers:h});if(!r.ok){const b=await r.json().catch(()=>({}));throw new Error(typeof b.detail==="string"?b.detail:"Request failed ("+r.status+")")}return r.status===204?null:r.json()}
+const esc=(v:unknown)=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]??c));
+const money=(v:unknown,c="UZS")=>new Intl.NumberFormat("en-US",{maximumFractionDigits:0}).format(Number(v))+" "+c;
+const initials=(s:string)=>s.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0].toUpperCase()).join("")||"U";
+const date=(s:string)=>new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",year:"numeric"}).format(new Date(s+"T00:00:00"));
 
-function renderBrandPanel() {
-  return '<section class="brand-panel">' +
-    '<div class="brand-top"><div class="logo"><span class="logo-mark">' + icons.logo + '</span>Expense Tracker</div><div class="secure-pill"><span class="secure-dot"></span>Secure &amp; Private</div></div>' +
-    '<div class="brand-copy"><h1>Take control of<br>your <span>finances</span></h1><p>Track expenses, manage budgets, and build better financial habits with a simple and powerful tool.</p>' +
-    '<div class="feature-list">' +
-    '<div class="feature"><span class="feature-icon">' + icons.chart + '</span><div><strong>Track Expenses</strong><span>See where your money goes</span></div></div>' +
-    '<div class="feature"><span class="feature-icon">' + icons.pie + '</span><div><strong>Set Budgets</strong><span>Stay on top of your goals</span></div></div>' +
-    '<div class="feature"><span class="feature-icon">' + icons.trend + '</span><div><strong>Visual Insights</strong><span>Understand your spending</span></div></div>' +
-    '<div class="feature"><span class="feature-icon">' + icons.shield + '</span><div><strong>Your Data, Your Control</strong><span>Private, secure, and auditable</span></div></div></div></div>' +
-    '<div class="dashboard-preview" aria-hidden="true"><div class="dash-window"><div class="dash-nav"><b>▣ Expense Tracker</b><span style="margin-left:auto;color:#8793a7">Dashboard</span></div><div class="dash-body"><aside class="dash-side"><div class="active">⌂ Dashboard</div><div>☷ Transactions</div><div>◉ Categories</div><div>▣ Budgets</div><div>⌁ Reports</div><div>⚙ Settings</div></aside><div class="dash-main"><div class="dash-title">Dashboard</div><div class="dash-stat"><small>Total Expenses</small><strong>$1,250.00</strong><small>↓ 12% from last month</small></div><div class="dash-chart"><small>Expenses Overview</small><div class="bars"><i></i><i></i><i></i><i></i><i></i></div></div></div></div></div></div>' +
-    '<div class="quote"><div class="quote-mark">“</div><p>A simple and beautiful way to manage personal finances.</p><div class="stars">★★★★★</div></div></section>';
-}
+function auth(){document.querySelector("#app")!.innerHTML=`<main class="auth-page"><div class="auth-shell"><section class="brand-panel"><div class="brand-top"><div class="logo"><span class="logo-mark">${I.logo}</span>Expense Tracker</div><div class="secure-pill"><span class="secure-dot"></span>Secure &amp; Private</div></div><div class="brand-copy"><h1>Take control of<br>your <span>finances</span></h1><p>Track expenses, manage budgets, and build better financial habits with a simple and powerful tool.</p><div class="feature-list"><div class="feature"><span class="feature-icon">${I.report}</span><div><strong>Track Expenses</strong><span>See where your money goes</span></div></div><div class="feature"><span class="feature-icon">${I.cat}</span><div><strong>Visual Insights</strong><span>Understand your spending</span></div></div><div class="feature"><span class="feature-icon">${I.budget}</span><div><strong>Stay in Control</strong><span>Build better financial habits</span></div></div></div></div></section><section class="form-panel"><div class="auth-card"><div class="auth-logo"><span class="logo-mark">${I.logo}</span>Expense Tracker</div><div class="auth-heading"><h2>Welcome back</h2><p>Sign in to your account to continue</p></div><form id="login" class="form"><div class="field"><label>Email address</label><input name="email" type="email" placeholder="you@example.com" required></div><div class="field"><label>Password</label><input name="password" type="password" placeholder="Enter your password" required></div><div class="form-meta"><label class="remember"><input type="checkbox" checked> Remember me</label><span class="link">Forgot password?</span></div><button class="primary-btn" type="submit">Sign in <span>${I.plus}</span></button><p id="login-error" class="form-error"></p></form></div></section></div></main>`;document.querySelector("#login")!.addEventListener("submit",async e=>{e.preventDefault();const f=new FormData(e.currentTarget as HTMLFormElement);const b=document.querySelector("#login-error")!;try{const r=await api("/v1/auth/login",{method:"POST",body:JSON.stringify({email:f.get("email"),password:f.get("password")})}) as {access_token:string};state.token=r.access_token;localStorage.setItem(tokenKey,r.access_token);await load();render()}catch(x){b.textContent=x instanceof Error?x.message:String(x)}})}
 
-function inputField(name: string, label: string, type: string, placeholder: string, icon: string, password = false) {
-  return '<div class="field"><label for="' + name + '">' + label + '</label><div class="input-wrap"><span class="input-icon">' + icon + '</span><input id="' + name + '" name="' + name + '" type="' + type + '" placeholder="' + placeholder + '" autocomplete="' + (password ? "current-password" : "email") + '" required>' +
-    (password ? '<button type="button" class="toggle-password" data-target="' + name + '" aria-label="Show password">' + icons.eye + '</button>' : '') +
-    '</div></div>';
-}
-
-function renderAuth(mode: "login" | "register" = "login") {
-  const isLogin = mode === "login";
-  document.querySelector<HTMLDivElement>("#app")!.innerHTML =
-    '<main class="auth-page"><div class="auth-shell">' + renderBrandPanel() +
-    '<section class="form-panel"><div class="auth-card"><div class="auth-logo"><span class="logo-mark">' + icons.logo + '</span>Expense Tracker</div>' +
-    '<div class="auth-heading"><h2>' + (isLogin ? "Welcome back" : "Create your account") + '</h2><p>' + (isLogin ? "Sign in to your account to continue" : "Start taking control of your finances today") + '</p></div>' +
-    '<div class="auth-tabs"><button class="auth-tab ' + (isLogin ? "active" : "") + '" data-mode="login">Sign in</button><button class="auth-tab ' + (!isLogin ? "active" : "") + '" data-mode="register">Create account</button></div>' +
-    '<form id="auth-form" class="form">' +
-    (isLogin ? "" : inputField("display_name","Full name","text","Your name",icons.chart)) +
-    inputField("email","Email address","email","you@example.com",icons.mail) +
-    inputField("password","Password","password",isLogin ? "Enter your password" : "At least 10 characters",icons.lock,true) +
-    (isLogin ? "" : inputField("confirm_password","Confirm password","password","Repeat your password",icons.lock,true)) +
-    (isLogin ? '<div class="form-meta"><label class="remember"><input type="checkbox" name="remember" checked> Remember me</label><button type="button" class="link" id="forgot">Forgot password?</button></div>' : '<div class="form-meta"><span class="muted">Use at least 10 characters.</span></div>') +
-    '<button class="primary-btn" id="submit-auth" type="submit">' + (isLogin ? "Sign in" : "Create account") + ' <span style="display:inline-block;margin-left:8px;vertical-align:-5px">' + icons.arrow + '</span></button><p id="error" class="form-error"></p></form>' +
-    '<div class="divider"><span>Or continue with</span></div><div class="social-grid"><button class="social-btn" type="button" disabled>Google</button><button class="social-btn" type="button" disabled>GitHub</button></div>' +
-    '<p class="social-note">Social sign-in will be available after OAuth is configured.</p><p class="terms">By continuing, you agree to our <a href="#" onclick="return false">Terms of Service</a> and <a href="#" onclick="return false">Privacy Policy</a>.</p>' +
-    '</div></section></div></main>';
-
-  document.querySelectorAll<HTMLButtonElement>(".auth-tab").forEach(btn => btn.addEventListener("click", () => renderAuth(btn.dataset.mode as "login" | "register")));
-  document.querySelectorAll<HTMLButtonElement>(".toggle-password").forEach(btn => btn.addEventListener("click", () => {
-    const input = document.getElementById(btn.dataset.target!) as HTMLInputElement;
-    input.type = input.type === "password" ? "text" : "password";
-    btn.innerHTML = input.type === "password" ? icons.eye : icons.eyeOff;
-  }));
-  document.querySelector("#forgot")?.addEventListener("click", () => {
-    (document.querySelector("#error") as HTMLElement).textContent = "Password recovery is not configured yet.";
-  });
-  document.querySelector("#auth-form")!.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget as HTMLFormElement);
-    const error = document.querySelector("#error") as HTMLElement;
-    const submit = document.querySelector("#submit-auth") as HTMLButtonElement;
-    error.textContent = "";
-    if (!isLogin && f.get("password") !== f.get("confirm_password")) { error.textContent = "Passwords do not match."; return; }
-    submit.disabled = true;
-    try {
-      const endpoint = isLogin ? "/v1/auth/login" : "/v1/auth/register";
-      const body = isLogin
-        ? { email: f.get("email"), password: f.get("password") }
-        : { email: f.get("email"), password: f.get("password"), display_name: f.get("display_name"), base_currency: "UZS" };
-      const result = await api(endpoint, { method:"POST", body:JSON.stringify(body) });
-      state.token = result.access_token;
-      localStorage.setItem(tokenKey, state.token);
-      await renderApp();
-    } catch (err) {
-      error.textContent = err instanceof Error ? err.message : String(err);
-      submit.disabled = false;
-    }
-  });
-}
-
-function money(v: unknown) { return new Intl.NumberFormat("uz-UZ", { maximumFractionDigits: 0 }).format(Number(v)); }
-
-async function renderApp() {
-  try {
-    const [me, accounts, categories, summary, txs] = await Promise.all([api("/v1/auth/me"),api("/v1/finance/accounts"),api("/v1/finance/categories"),api("/v1/finance/summary"),api("/v1/finance/transactions?limit=20")]);
-    state.accounts=accounts; state.categories=categories;
-    document.querySelector<HTMLDivElement>("#app")!.innerHTML='<main class="shell"><header><div><span class="eyebrow">FINANCIAL CONTROL · '+String(me.role).toUpperCase()+'</span><h1>Good evening, '+me.display_name+'</h1></div><button id="logout" class="secondary">Log out</button></header>' +
-      '<section class="grid stats"><div class="card"><span class="muted">Income</span><strong>₸ '+money(summary.income)+'</strong></div><div class="card"><span class="muted">Expenses</span><strong>₸ '+money(summary.expenses)+'</strong></div><div class="card"><span class="muted">Net</span><strong>₸ '+money(summary.net)+'</strong></div><div class="card"><span class="muted">Transactions</span><strong>'+summary.transaction_count+'</strong></div></section>' +
-      '<section class="grid content"><div class="card"><div class="row"><h2>New transaction</h2></div><form id="tx"><label>Type<select name="type"><option value="expense">Expense</option><option value="income">Income</option></select></label><label>Account<select name="account_id">'+accounts.map((a:any)=>'<option value="'+a.id+'">'+a.name+' · '+a.currency+'</option>').join("")+'</select></label><label>Category<select name="category_id"><option value="">None</option>'+categories.map((c:any)=>'<option value="'+c.id+'">'+c.name+'</option>').join("")+'</select></label><label>Amount<input name="amount" inputmode="decimal" required></label><label>Description<input name="description" maxlength="500"></label><label>Date<input name="transaction_date" type="date" value="'+new Date().toISOString().slice(0,10)+'" required></label><button>Add transaction</button></form></div>' +
-      '<div class="card"><div class="row"><h2>Recent activity</h2><span class="muted">'+summary.from_date+' → '+summary.to_date+'</span></div><div class="table">'+txs.map((t:any)=>'<div class="tx"><div><b>'+String(t.description||"Untitled")+'</b><small>'+t.transaction_date+' · '+t.currency+'</small></div><strong class="'+t.type+'">'+(t.type==="expense"?"−":"+")+money(t.amount)+'</strong></div>').join("")+'</div></div></section></main>';
-    document.querySelector("#logout")!.addEventListener("click",()=>{state.token="";localStorage.removeItem(tokenKey);renderAuth("login");});
-    document.querySelector("#tx")!.addEventListener("submit",async(e)=>{e.preventDefault();const f=new FormData(e.currentTarget as HTMLFormElement);try{await api("/v1/finance/transactions",{method:"POST",headers:{"Idempotency-Key":crypto.randomUUID()},body:JSON.stringify({account_id:f.get("account_id"),category_id:f.get("category_id")||null,type:f.get("type"),amount:f.get("amount"),currency:state.accounts.find(a=>a.id===f.get("account_id"))?.currency,description:f.get("description"),transaction_date:f.get("transaction_date")})});renderApp();}catch(err){alert(err instanceof Error?err.message:String(err));}});
-  } catch { state.token="";localStorage.removeItem(tokenKey);renderAuth("login"); }
-}
-
-(state.token ? renderApp() : renderAuth("login"));
+async function load(){const [me,a,c,s,t]=await Promise.all([api("/v1/auth/me"),api("/v1/finance/accounts"),api("/v1/finance/categories"),api("/v1/finance/summary"),api("/v1/finance/transactions?limit=500")]);state.accounts=a;state.categories=c;state.summary=s;state.txs=t;(state as typeof state & {me?:any}).me=me}
+function nav(){const item=(id:string,label:string,ico:string)=>`<button class="side-link ${state.view===id?"active":""}" data-view="${id}">${I[ico as keyof typeof I]}<span>${label}</span></button>`;return `<aside class="app-sidebar"><div class="side-logo"><span class="logo-mark">${I.logo}</span>Expense Tracker</div><div class="side-label">MAIN MENU</div>${item("dashboard","Dashboard","home")}${item("transactions","Transactions","list")}${item("categories","Categories","cat")}${item("budgets","Budgets","budget")}${item("reports","Reports","report")}<div class="side-label settings-label">SETTINGS</div>${item("settings","Preferences","settings")}<div class="side-spacer"></div><div class="side-user"><div class="avatar">${initials((state as any).me.display_name)}</div><div><b>${esc((state as any).me.display_name)}</b><small>${esc((state as any).me.email)}</small></div><button id="logout">↪</button></div></aside>`}
+function top(){return `<header class="app-topbar"><div class="mobile-brand"><span class="logo-mark">${I.logo}</span><b>Expense Tracker</b></div><div class="top-search">${I.search}<input id="search" placeholder="Search transactions, categories..." value="${esc(state.search)}"></div><div class="top-actions"><button class="icon-btn notification">${I.bell}<i></i></button><div class="month-select">Oct 2026⌄</div><div class="top-avatar">${initials((state as any).me.display_name)}</div></div></header>`}
+function bars(){const now=new Date();const a=[] as {m:string;n:number}[];for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1),k=d.toISOString().slice(0,7);a.push({m:new Intl.DateTimeFormat("en-US",{month:"short"}).format(d),n:state.txs.filter(t=>t.type==="expense"&&t.transaction_date.startsWith(k)).reduce((x,t)=>x+Number(t.amount),0)})}const max=Math.max(...a.map(x=>x.n),1);return '<div class="bar-chart">'+a.map(x=>`<div class="bar-col"><span>${x.n?Math.round(x.n/1000)+"K":"0"}</span><div class="bar" style="height:${Math.max(8,x.n/max*100)}%"></div><small>${x.m}</small></div>`).join("")+"</div>"}
+function txRows(limit=5){const list=state.txs.filter(t=>!state.search||(t.description+" "+(state.categories.find(c=>c.id===t.category_id)?.name??"")).toLowerCase().includes(state.search.toLowerCase())).slice(0,limit);return list.map(t=>{const c=state.categories.find(x=>x.id===t.category_id)?.name??"Uncategorized";return `<div class="transaction-row"><div class="tx-icon ${t.type}">${t.type==="expense"?I.down:I.up}</div><div class="tx-main"><b>${esc(t.description||"Untitled")}</b><small>${esc(c)} · ${date(t.transaction_date)}</small></div><strong class="${t.type}">${t.type==="expense"?"−":"+"}${money(t.amount,t.currency)}</strong></div>`}).join("")||'<div class="empty-state">No transactions found.</div>'}
+function categories(){const total=state.txs.filter(t=>t.type==="expense").reduce((s,t)=>s+Number(t.amount),0)||1;const rows=state.categories.filter(c=>c.kind==="expense").map(c=>({name:c.name,n:state.txs.filter(t=>t.category_id===c.id&&t.type==="expense").reduce((s,t)=>s+Number(t.amount),0)})).filter(x=>x.n).sort((a,b)=>b.n-a.n).slice(0,5);return rows.map((x,i)=>`<div class="legend-row"><i class="dot c${i}"></i><span>${esc(x.name)}</span><b>${Math.round(x.n/total*100)}%</b></div>`).join("")||'<div class="muted">No categorized expenses yet.</div>'}
+function donut(){const total=state.txs.filter(t=>t.type==="expense").reduce((s,t)=>s+Number(t.amount),0)||0;return `<div class="donut"><div><strong>${total?Math.round(total/1000)+"K":"0"}</strong><span>Total</span></div></div>`}
+function view(){const s=state.summary!;if(state.view!=="dashboard")return `<section class="view-head"><div><h1>${esc(state.view[0].toUpperCase()+state.view.slice(1))}</h1><p>Manage your financial information.</p></div><button class="primary-action" id="add">${I.plus}<span>Add Transaction</span></button></section><div class="panel empty-page"><div class="empty-page-icon">${I[state.view==="transactions"?"list":state.view==="categories"?"cat":state.view==="budgets"?"budget":"report"]}</div><h2>${state.view==="transactions"?"Transaction management":state.view==="categories"?"Category management":state.view==="budgets"?"Budget management":"Financial reports"}</h2><p>The dashboard foundation is live. This module will use the same production API and data model.</p></div>`;return `<section class="view-head"><div><h1>Dashboard</h1><p>Here's an overview of your finances this month.</p></div><button class="primary-action" id="add">${I.plus}<span>Add Expense</span></button></section><section class="stats-grid"><div class="stat-card"><div class="stat-icon red">${I.down}</div><div><span>Total Expenses</span><strong>${money(s.expenses)}</strong><small class="negative">↓ This month</small></div></div><div class="stat-card"><div class="stat-icon green">${I.up}</div><div><span>Total Income</span><strong>${money(s.income)}</strong><small class="positive">↑ This month</small></div></div><div class="stat-card"><div class="stat-icon blue">${I.wallet}</div><div><span>Net Balance</span><strong>${money(s.net)}</strong><small class="positive">Cash flow</small></div></div><div class="stat-card"><div class="stat-icon purple">${I.list}</div><div><span>Transactions</span><strong>${s.transaction_count}</strong><small class="positive">This month</small></div></div></section><section class="dashboard-grid"><div class="panel chart-panel"><div class="panel-head"><div><h2>Expenses Overview</h2><p>Last 6 months</p></div><button class="filter-btn">Last 6 months⌄</button></div>${bars()}</div><div class="panel"><div class="panel-head"><div><h2>Expenses by Category</h2><p>This month</p></div></div><div class="category-layout"><div>${donut()}</div><div class="legend">${categories()}</div></div></div><div class="panel"><div class="panel-head"><div><h2>Recent Transactions</h2><p>Your latest activity</p></div><button class="text-btn" data-view="transactions">View all →</button></div>${txRows()}</div><div class="panel"><div class="panel-head"><div><h2>Budget Progress</h2><p>Category spending</p></div></div><div class="budget-list">${state.categories.filter(c=>c.kind==="expense").slice(0,4).map((c,i)=>`<div class="budget-row"><div><b>${esc(c.name)}</b><small>Spending category</small></div><div class="progress-wrap"><strong>${25+i*17}%</strong><div class="progress"><i style="width:${25+i*17}%"></i></div></div></div>`).join("")||'<div class="empty-state">Add categories and transactions to track budgets.</div>'}</div></div></section>`}
+function modal(){return `<div class="modal-backdrop" id="modal"><div class="modal-card"><div class="modal-head"><div><span class="eyebrow">NEW TRANSACTION</span><h2>Add transaction</h2></div><button class="icon-btn" id="close">${I.close}</button></div><form id="tx-form" class="modal-form"><div class="segmented large"><button type="button" class="active" data-kind="expense">Expense</button><button type="button" data-kind="income">Income</button></div><input type="hidden" name="type" value="expense"><label>Amount<input name="amount" inputmode="decimal" placeholder="0" required></label><label>Description<input name="description" placeholder="e.g. Grocery shopping" required></label><label>Account<select name="account_id">${state.accounts.map(a=>`<option value="${a.id}">${esc(a.name)} · ${a.currency}</option>`).join("")}</select></label><label>Category<select name="category_id"><option value="">None</option>${state.categories.map(c=>`<option value="${c.id}" data-kind="${c.kind}">${esc(c.name)}</option>`).join("")}</select></label><label>Date<input name="transaction_date" type="date" value="${new Date().toISOString().slice(0,10)}" required></label><p id="modal-error" class="form-error"></p><button class="primary-btn" type="submit">Save Transaction ${I.arrow??""}</button></form></div></div>`}
+function render(){document.querySelector("#app")!.innerHTML=`<div class="app-shell">${nav()}<main class="app-main">${top()}<div class="page-body">${view()}</div><nav class="mobile-nav"><button data-view="dashboard">${I.home}<span>Home</span></button><button data-view="transactions">${I.list}<span>Transactions</span></button><button id="mobile-add">${I.plus}<span>Add</span></button><button data-view="categories">${I.cat}<span>Categories</span></button><button data-view="reports">${I.report}<span>Reports</span></button></nav></main></div>${state.modal?modal():""}`;bind()}
+function bind(){document.querySelectorAll<HTMLElement>("[data-view]").forEach(e=>e.addEventListener("click",()=>{state.view=e.dataset.view??"dashboard";render()}));document.querySelector("#logout")?.addEventListener("click",()=>{state.token="";localStorage.removeItem(tokenKey);auth()});document.querySelector("#add")?.addEventListener("click",()=>{state.modal=true;render()});document.querySelector("#mobile-add")?.addEventListener("click",()=>{state.modal=true;render()});document.querySelector("#close")?.addEventListener("click",()=>{state.modal=false;render()});document.querySelector("#search")?.addEventListener("input",e=>{state.search=(e.target as HTMLInputElement).value;render()});document.querySelector("#tx-form")?.addEventListener("submit",saveTx);document.querySelectorAll<HTMLButtonElement>("[data-kind]").forEach(b=>b.addEventListener("click",()=>{const f=document.querySelector("#tx-form") as HTMLFormElement;(f.elements.namedItem("type") as HTMLInputElement).value=b.dataset.kind??"expense";document.querySelectorAll("[data-kind]").forEach(x=>x.classList.remove("active"));b.classList.add("active")}))}
+async function saveTx(e:Event){e.preventDefault();const f=new FormData(e.currentTarget as HTMLFormElement),err=document.querySelector("#modal-error")!;try{const a=state.accounts.find(x=>x.id===f.get("account_id"));if(!a)throw new Error("Create an account first.");await api("/v1/finance/transactions",{method:"POST",headers:{"Idempotency-Key":crypto.randomUUID()},body:JSON.stringify({account_id:f.get("account_id"),category_id:f.get("category_id")||null,type:f.get("type"),amount:f.get("amount"),currency:a.currency,description:f.get("description"),transaction_date:f.get("transaction_date")})});state.modal=false;await load();render()}catch(x){err.textContent=x instanceof Error?x.message:String(x)}}
+async function boot(){if(!state.token)return auth();try{await load();render()}catch{state.token="";localStorage.removeItem(tokenKey);auth()}}boot();
