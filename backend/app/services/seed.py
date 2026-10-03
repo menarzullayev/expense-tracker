@@ -184,26 +184,26 @@ def seed_demo_finance_data(db: Session) -> None:
                 k=1,
             )[0]
             lo, hi = AMOUNTS[cat]
-            amount = Decimal(rng.randrange(lo, hi + 1, max(1000, (hi - lo) // 30)))
+            variable_amount = Decimal(rng.randrange(lo, hi + 1, max(1000, (hi - lo) // 30)))
             day = rng.randrange(1, 29)
             if month_offset == 11 and cat in {"Kiyim-kechak", "Xaridlar"}:
-                amount = int(amount * 1.25)
+                variable_amount = variable_amount * Decimal("1.25")
             merchant = rng.choice(MERCHANTS[cat])
             rows.append(Transaction(
                 user_id=demo.id, account_id=accounts[0].id,
                 category_id=categories[("expense", cat)].id, type="expense",
-                amount=Decimal(amount), currency="UZS",
+                amount=variable_amount, currency="UZS",
                 description=merchant, transaction_date=month_start.replace(day=day),
                 idempotency_key=f"seed-tx-{month_offset}-{n}",
             ))
 
         # Occasional freelance income.
         if month_offset % 3 == 1:
-            amount = Decimal(rng.randrange(700000, 2800001, 100000))
+            freelance_amount = Decimal(rng.randrange(700000, 2800001, 100000))
             rows.append(Transaction(
                 user_id=demo.id, account_id=accounts[0].id,
                 category_id=categories[("income", "Freelance")].id, type="income",
-                amount=amount, currency="UZS", description="Freelance loyiha",
+                amount=freelance_amount, currency="UZS", description="Freelance loyiha",
                 transaction_date=month_start.replace(day=18),
                 idempotency_key=f"seed-freelance-{month_offset}",
             ))
@@ -213,11 +213,11 @@ def seed_demo_finance_data(db: Session) -> None:
     # solely to exercise account/category/date aggregation.
     for n in range(12):
         d = (start.replace(day=1) + timedelta(days=32 * n)).replace(day=10)
-        amount = Decimal(rng.randrange(500000, 1800001, 100000))
+        saving_amount = Decimal(rng.randrange(500000, 1800001, 100000))
         rows.append(Transaction(
             user_id=demo.id, account_id=accounts[1].id,
             category_id=categories[("income", "Boshqa daromad")].id, type="income",
-            amount=amount, currency="UZS", description="Jamg'armaga tushum",
+            amount=saving_amount, currency="UZS", description="Jamg'armaga tushum",
             transaction_date=d, idempotency_key=f"seed-saving-{n}",
         ))
 
@@ -228,11 +228,11 @@ def seed_demo_finance_data(db: Session) -> None:
         month_start = (start.replace(day=1) + timedelta(days=32 * month_offset)).replace(day=1)
         cat = rng.choice(list(AMOUNTS))
         lo, hi = AMOUNTS[cat]
-        amount = Decimal(rng.randrange(lo, hi + 1, 1000))
+        extra_amount = Decimal(rng.randrange(lo, hi + 1, 1000))
         rows.append(Transaction(
             user_id=demo.id, account_id=rng.choice(accounts).id,
             category_id=categories[("expense", cat)].id, type="expense",
-            amount=Decimal(amount), currency="UZS",
+            amount=extra_amount, currency="UZS",
             description=rng.choice(MERCHANTS[cat]),
             transaction_date=month_start.replace(day=rng.randrange(1, 29)),
             idempotency_key=f"seed-extra-{n}",
